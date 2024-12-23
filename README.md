@@ -33,22 +33,22 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 
 #### Grupo Público
 
-| Tipo | Protocolo | Porta | Origem | 
-|--------|-----------|-------|-----------| 
-| Entrada | TCP | 80 | 0.0.0.0/0 | 
-| Entrada | TCP | 443 | 0.0.0.0/0 |
-| Entrada | TCP | 22 | 0.0.0.0/0 | 
-| Saída | - | - | Todo o tráfego permitido | 
+| Tipo    | Protocolo | Porta | Origem                   |
+| ------- | --------- | ----- | ------------------------ |
+| Entrada | TCP       | 80    | 0.0.0.0/0                |
+| Entrada | TCP       | 443   | 0.0.0.0/0                |
+| Entrada | TCP       | 22    | 0.0.0.0/0                |
+| Saída   | -         | -     | Todo o tráfego permitido |
 
  #### Grupo Privado 
- | Tipo | Protocolo | Porta | Origem |
- |---------|-----------|------|----------------| 
- | Entrada | TCP | 3306 | 0.0.0.0/0 | 
- | Entrada | TCP | 22 | 0.0.0.0/0 | 
- | Entrada | TCP | 2049 | 0.0.0.0/0 | 
- | Entrada | TCP | 443 | Grupo Público | 
- | Entrada | TCP | 80 | Grupo Público | 
- | Saída | - | - | Todo o tráfego permitido | 
+ | Tipo    | Protocolo | Porta | Origem                   |
+ | ------- | --------- | ----- | ------------------------ |
+ | Entrada | TCP       | 3306  | 0.0.0.0/0                |
+ | Entrada | TCP       | 22    | 0.0.0.0/0                |
+ | Entrada | TCP       | 2049  | 0.0.0.0/0                |
+ | Entrada | TCP       | 443   | Grupo Público            |
+ | Entrada | TCP       | 80    | Grupo Público            |
+ | Saída   | -         | -     | Todo o tráfego permitido |
 
  ### Passo 3: Criar Instância EC2 
  
@@ -106,32 +106,34 @@ sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,ret
 sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d 
 ```
 
-# Arquivo de configuração para automação AWS
-# Salve como aws_setup_steps.yml e use com as ferramentas apropriadas
 
-etapas:
-  - etapa: Configurar Load Balancer
-    acoes:
+  ### Passo 4: Configurar Load Balancer
+
       - Criar Load Balancer
       - Configurar com Application Load Balancer
       - Vincular ao grupo de segurança público
       - Configurar Listeners (HTTP, porta 80)
       - Testar verificações de integridade
 
-  - etapa: Configurar EFS
-    acoes:
+
+
+  ### Passo 5:Criar e configurar EFS
+    
       - Criar EFS
       - Vincular à VPC
-      - Configurar armazenamento compartilhado
+      - Configurar armazenamento compartilhado entre as intâncias EC2.
 
-  - etapa: Configurar RDS
-    acoes:
+![Diagrama da Arquitetura](images/estrutura.png)
+
+  ### Passo 6: Criar e configurar RDS
+    
       - Criar banco de dados MySQL
       - Configurações Free Tier
       - Definir usuário, senha, nome do banco
       - Vincular à VPC, grupo de segurança, subnets privadas
 
-  - etapa: Configurar Docker e WordPress
+  ### Passo 6: Configurar Docker e WordPress
+
     docker_compose:
       wordpress:
         image: wordpress:latest
@@ -148,8 +150,9 @@ etapas:
       volumes:
         wordpress:
 
-  - etapa: Configurar Auto Scaling
-    acoes:
+
+  ### Passo 7: Configurar Auto Scaling
+    
       - Criar Auto Scaling Group
       - Vincular a um Launch Configuration ou Template
       - Definir capacidades inicial, mínima e máxima
