@@ -150,3 +150,10 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 
    volumes:
      wordpress:
+
+
+### Passo 8: Configurar Auto Scaling
+- Criar Auto Scaling Group:
+- Vincular a um Launch Configuration ou Template.
+- Definir capacidades inicial, mínima e máxima.
+- Associar ao Load Balancer existente.
