@@ -1,13 +1,9 @@
-## Nome do projeto
-Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2, Load Balancer, EFS e RDS.
 # WordPress na AWS
 
-## Nome do Projeto
+## Deploy de Aplicação WordPress no AWS EC2 com Docker e EFS
 Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2, Load Balancer, EFS e RDS.
 
-# WordPress na AWS
-
-![Diagrama da Arquitetura](images/estrutura.png)  <!-- Adicione sua imagem aqui -->
+![Diagrama da Arquitetura](images/estrutura.png)
 
 ## Arquitetura do Sistema
 
@@ -32,97 +28,129 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 
 ### Passo 2: Criar Grupos de Segurança
 
+
 ![Configurando grupos de segurança](images/gs.png) 
 
 #### Grupo Público
 
-| Tipo   | Protocolo | Porta | Origem    |
-|--------|-----------|-------|-----------|
-| Entrada | TCP       | 80    | 0.0.0.0/0 |
-| Entrada | TCP       | 443   | 0.0.0.0/0 |
-| Entrada | TCP       | 22    | 0.0.0.0/0 |
-| Saída   | -         | -     | Todo o tráfego permitido |
+| Tipo | Protocolo | Porta | Origem | 
+|--------|-----------|-------|-----------| 
+| Entrada | TCP | 80 | 0.0.0.0/0 | 
+| Entrada | TCP | 443 | 0.0.0.0/0 |
+| Entrada | TCP | 22 | 0.0.0.0/0 | 
+| Saída | - | - | Todo o tráfego permitido | 
 
-#### Grupo Privado
+ #### Grupo Privado 
+ | Tipo | Protocolo | Porta | Origem |
+ |---------|-----------|------|----------------| 
+ | Entrada | TCP | 3306 | 0.0.0.0/0 | 
+ | Entrada | TCP | 22 | 0.0.0.0/0 | 
+ | Entrada | TCP | 2049 | 0.0.0.0/0 | 
+ | Entrada | TCP | 443 | Grupo Público | 
+ | Entrada | TCP | 80 | Grupo Público | 
+ | Saída | - | - | Todo o tráfego permitido | 
 
-| Tipo    | Protocolo | Porta | Origem               |
-|---------|-----------|-------|----------------------|
-| Entrada | TCP       | 3306  | 0.0.0.0/0            |
-| Entrada | TCP       | 22    | 0.0.0.0/0            |
-| Entrada | TCP       | 2049  | 0.0.0.0/0            |
-| Entrada | TCP       | 443   | Grupo Público        |
-| Entrada | TCP       | 80    | Grupo Público        |
-| Saída   | -         | -     | Todo o tráfego permitido |
+ ### Passo 3: Criar Instância EC2 
+ 
+ 1. **Configurar Instância EC2:** 
+ - Abra o painel da EC2 e selecione a opção "executar instância", em seguida selecione as opções abaixo: 
+ - Tags: Utilize as tags atribuídas
+  - Tipo de instância: Free Tier (t2.micro) - AMI: Amazon Linux 2 
+  - VPC: Use a VPC criada anteriormente 
+  - User Data:
+  ```bash
+   #!/bin/bash 
 
-### Passo 3: Criar Instância EC2
+# Atualizar o sistema
+sudo yum update -y 
 
-1. **Configurar Instância EC2:**
+# Instalar Docker
+sudo yum install docker -y
 
-   - Abra o painel da EC2 e selecione a opção "executar instância", em seguida selecione as opções abaixo: 
-     - Tags: Utilize as tags atribuídas
-     - Tipo de instância: Free Tier (t2.micro)
-     - AMI: Amazon Linux 2
-     - VPC: Use a VPC criada anteriormente
-     - User Data:
-       ```bash
-       #!/bin/bash
-       yum update -y
-       yum install docker -y
-       service docker start
-       usermod -a -G docker ec2-user
-       ```
+# Iniciar e habilitar Docker
+sudo systemctl start docker
+sudo systemctl enable docker
 
-### Passo 4: Configurar Load Balancer
+# Adicionar ec2-user ao grupo Docker
+sudo usermod -aG docker ec2-user
+newgrp docker
 
-1. **Criar e Configurar o Load Balancer:**
-   - Configure o Load Balancer para distribuir o tráfego entre suas instâncias EC2.
+# Instalar Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
-![Configurando o Load Balancer](images/loads.png)
+# Criar diretório para o WordPress
+sudo mkdir /home/ec2-user/wordpress
 
-#### Criando o Elastic Load Balancer
+# Criar arquivo docker-compose.yml
+cat <<EOF > /home/ec2-user/wordpress/docker-compose.yml
+services:
+  wordpress:
+    image: wordpress
+    restart: always
+    ports:
+      - 80:80
+    environment:
+      WORDPRESS_DB_HOST: database-1.clgmyqs0asc5.us-east-1.rds.amazonaws.com:3306
+      WORDPRESS_DB_USER: admin
+      WORDPRESS_DB_PASSWORD: nicole1010
+      WORDPRESS_DB_NAME: bancodd
+    volumes:
+      - /mnt/efs:/var/www/html
+EOF
 
-Para fazer a criação do LB acesse o Load Balancer no console AWS, clique no botão de "Create Load Balancer" e siga os passos abaixo:
+# Montar o sistema de arquivos EFS
+sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport fs-053809c0e221c545b.efs.us-east-1.amazonaws.com:/ efs
 
-- Escolha o tipo "Application Load Balancer"
-- Tipo de Load Balancer
-- Nomeie o seu Load Balancer e na seção de mapeamento de redes, escolha a sua VPC.
-- Selecione as zonas de disponibilidades públicas
-- Selecione o seu grupo de segurança público
-- Certifique-se de que na seção Listeners e roteamento, e em verificações de integridade, que o tipo HTTP e a porta 80 estejam selecionados.
+# Subir os serviços com Docker Compose
+sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d 
+```
 
-![Configurando o Load Balancer](images/integridades.png)
+# Arquivo de configuração para automação AWS
+# Salve como aws_setup_steps.yml e use com as ferramentas apropriadas
 
-### Passo 5: Configurar EFS
+etapas:
+  - etapa: Configurar Load Balancer
+    acoes:
+      - Criar Load Balancer
+      - Configurar com Application Load Balancer
+      - Vincular ao grupo de segurança público
+      - Configurar Listeners (HTTP, porta 80)
+      - Testar verificações de integridade
 
-1. **Criar e Configurar o EFS:**
-   - Configure o Amazon EFS para o armazenamento compartilhado entre as instâncias EC2.
+  - etapa: Configurar EFS
+    acoes:
+      - Criar EFS
+      - Vincular à VPC
+      - Configurar armazenamento compartilhado
 
-### Passo 6: Configurar RDS
+  - etapa: Configurar RDS
+    acoes:
+      - Criar banco de dados MySQL
+      - Configurações Free Tier
+      - Definir usuário, senha, nome do banco
+      - Vincular à VPC, grupo de segurança, subnets privadas
 
-![Criando Banco de dados](images/rds.png)
+  - etapa: Configurar Docker e WordPress
+    docker_compose:
+      wordpress:
+        image: wordpress:latest
+        restart: always
+        ports:
+          - "8080:80"
+        environment:
+          WORDPRESS_DB_HOST: database-1.clgmyqs0asc5.us-east-1.rds.amazonaws.com:3306
+          WORDPRESS_DB_USER: admin
+          WORDPRESS_DB_PASSWORD: nicole1010
+          WORDPRESS_DB_NAME: bancodd
+        volumes:
+          - wordpress:/var/www/html
+      volumes:
+        wordpress:
 
-1. **Criar e Configurar o RDS:**
-   - Configure o Amazon RDS para o banco de dados do WordPress.
-
-### Passo 7: Configurar o Docker e WordPress
-
-![Configurando WordPress](images/confi.wordpress.png)
-
-1. **Criar o Arquivo docker-compose.yml:**
-   ```yaml
-   services:
-     wordpress:
-       image: wordpress:latest
-       restart: always
-       ports:
-         - "8080:80"
-       environment:
-         WORDPRESS_DB_HOST: mysql.clgmyqs0asc5.us-east-1.rds.amazonaws.com
-         WORDPRESS_DB_USER: mysql
-         WORDPRESS_DB_PASSWORD: projetouol
-         WORDPRESS_DB_NAME: wordpress
-       volumes:
-         - wordpress:/var/www/html
-
-   volumes:
-     wordpress:
+  - etapa: Configurar Auto Scaling
+    acoes:
+      - Criar Auto Scaling Group
+      - Vincular a um Launch Configuration ou Template
+      - Definir capacidades inicial, mínima e máxima
+      - Associar ao Load Balancer existente
