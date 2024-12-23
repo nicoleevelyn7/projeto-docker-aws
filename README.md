@@ -104,7 +104,8 @@ sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,ret
 
 # Subir os serviços com Docker Compose
 sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d 
-```
+
+
 
 
   ### Passo 4: Configurar Load Balancer
@@ -115,7 +116,7 @@ sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d
       - Configurar Listeners (HTTP, porta 80)
       - Testar verificações de integridade
 
-
+![Configuração das instâncias no LB](images/loads.png)
 
   ### Passo 5:Criar e configurar EFS
     
@@ -123,7 +124,7 @@ sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d
       - Vincular à VPC
       - Configurar armazenamento compartilhado entre as intâncias EC2.
 
-![Diagrama da Arquitetura](images/estrutura.png)
+
 
   ### Passo 6: Criar e configurar RDS
     
@@ -150,10 +151,12 @@ sudo docker-compose -f /home/ec2-user/wordpress/docker-compose.yml up -d
       volumes:
         wordpress:
 
+![Wordpress rodando no LB](images/conf.wordpress.png.png)
+
 
   ### Passo 7: Configurar Auto Scaling
     
       - Criar Auto Scaling Group
       - Vincular a um Launch Configuration ou Template
       - Definir capacidades inicial, mínima e máxima
-      - Associar ao Load Balancer existente
+      - Associar ao Load Balancer existente**
