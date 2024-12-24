@@ -152,8 +152,21 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
      wordpress:
 
 
+Wordpress rodando através do DNS Load Balancer:
+
+
+![Configuração do wordpress](images/conf.wordpress.png)
 ### Passo 8: Configurar Auto Scaling
 - Criar Auto Scaling Group:
 - Vincular a um Launch Configuration ou Template.
 - Definir capacidades inicial, mínima e máxima.
 - Associar ao Load Balancer existente.
+
+Acessando o Wordpress após configuração de login e senha: 
+![Página de login](images/login.png)
+
+Acessando após o login:
+- Página de teste 
+![Página inicial](images/teste.png)
+
+
