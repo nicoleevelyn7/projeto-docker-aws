@@ -1,7 +1,7 @@
 # WordPress na AWS
 
 ## Deploy de Aplicação WordPress no AWS EC2 com Docker e EFS
-Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2, Load Balancer, EFS e RDS.
+Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2, VPC, Load Balancer, Subnets, Security groups, Bastion Host, EFS e RDS.
 
 ![Diagrama da Arquitetura](images/estrutura.png)
 
@@ -11,20 +11,32 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 - **Load Balancer:** Distribui o tráfego entre as instâncias EC2.
 - **EFS:** Sistema de arquivos para armazenamento compartilhado.
 - **RDS:** Banco de dados relacional para armazenamento dos dados do WordPress.
+- **AutoScaling:** Ajusta automaticamente o número de instâncias EC2 em resposta à demanda, garantindo desempenho e eficiência de custos.
 
 ## Pré-requisitos
 
 - Conta AWS
-- AWS CLI configurada
-- Docker e Docker Compose instalados
+- Editor de texto de sua preferência
 
 ## Configuração e Instalação
 
 ### Passo 1: Configurar a VPC
 
-1. **Criar uma VPC:**
-   - Configure a VPC conforme necessário para seu projeto.
+1. **Criando a VPC:**
+  - Configure a VPC conforme necessário para seu projeto.
+  - Crie as sub-redes (2 públicas e 2 privadas).
+  - Crie tabelas de rotas e associe ás sub-redes.
+
+
+
+
+
+
    ![Criação da VPC](images/vpc.png) 
+
+
+   ----
+
 
 ### Passo 2: Criar Grupos de Segurança
 
@@ -32,33 +44,39 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 
 #### Grupo Público
 
-| Tipo    | Protocolo | Porta | Origem                   |
-| ------- | --------- | ----- | ------------------------ |
-| Entrada | TCP       | 80    | 0.0.0.0/0                |
-| Entrada | TCP       | 443   | 0.0.0.0/0                |
-| Entrada | TCP       | 22    | 0.0.0.0/0                |
-| Saída   | -         | -     | Todo o tráfego permitido |
+- Tipo: Entrada > Protocolo: TCP > Porta: 80 > Origem: 0.0.0.0/0
+- Tipo: Entrada > Protocolo: TCP > Porta: 443 > Origem: 0.0.0.0/0
+- Tipo: Entrada > Protocolo: TCP > Porta: 22 > Origem: 0.0.0.0/0
+- Tipo: Saída > Protocolo: vazio > Porta: vazio > Origem: Todo o tráfego permitido
+
 
 #### Grupo Privado 
+- Tipo: Entrada > Protocolo: TCP > Porta: 3306 > Origem: 0.0.0.0/0
+- Tipo: Entrada > Protocolo: TCP > Porta: 22 > Origem: 0.0.0.0/0
+- Tipo: Entrada > Protocolo: TCP > Porta: 2049 > Origem: 0.0.0.0/0
+- Tipo: Entrada > Protocolo: TCP > Porta: 443 > Origem: Grupo Público
+- Tipo: Entrada > Protocolo: TCP > Porta: 80 > Origem: Grupo Público
+- Tipo: Saída vazio > Protocolo: vazio > Todo o tráfego permitido
 
-| Tipo    | Protocolo | Porta | Origem                   |
-| ------- | --------- | ----- | ------------------------ |
-| Entrada | TCP       | 3306  | 0.0.0.0/0                |
-| Entrada | TCP       | 22    | 0.0.0.0/0                |
-| Entrada | TCP       | 2049  | 0.0.0.0/0                |
-| Entrada | TCP       | 443   | Grupo Público            |
-| Entrada | TCP       | 80    | Grupo Público            |
-| Saída   | -         | -     | Todo o tráfego permitido |
+
+
+---
+
 
 ### Passo 3: Criar Instância EC2 
 
 1. **Configurar Instância EC2:** 
    - Abra o painel da EC2 e selecione a opção "executar instância", em seguida selecione as opções abaixo: 
-     - Tags: Utilize as tags atribuídas
+
+     - Escolha um nome
      - Tipo de instância: Free Tier (t2.micro)
      - AMI: Amazon Linux 2 
-     - VPC: Use a VPC criada anteriormente 
-     - User Data:
+     - VPC: Selecione a VPC criada no primeiro passo 
+     - Crie um par de chaves (caso ja tenha criado, utilize uma chave existente).
+     - Em configurações de rede, selecione a subnet privada e mantenha o ip público desabilitado. 
+     - Crie um grupo de segurança, escolha o nome e defina as regras (caso já tenha criado, utilize um grupo existente).
+     
+     - Em detalhes avançados, adicione o User Data:
        ```bash
        #!/bin/bash 
 
@@ -110,63 +128,82 @@ Este projeto configura e executa uma aplicação WordPress utilizando Amazon EC2
 ### Passo 4: Configurar Load Balancer
 
 1. **Criar Load Balancer:**
-   - Configure com Application Load Balancer.
-   - Vincular ao grupo de segurança público.
-   - Configurar Listeners (HTTP, porta 80).
-   - Testar verificações de integridade.
+   - No console da AWS, e clique em criar Load Balancer.
+   - Escolha um nome para o seu Load Balancer e selecione a sua VPC.
+   - Vincule ao grupo de segurança público.
+   - Na opção Listeners e roteamento, selecione (HTTP, porta 80).
+   - Em verificações de integridade, selecione o protocolo ping (HTTP e porta 80) e caminho de ping (/wp-admin/install.php).
 
-![Configuração das instâncias no LB](images/loads.png)
+
+
+
+
 
 ### Passo 5: Criar e Configurar EFS
     
-1. **Criar EFS:**
+1. **Acesse o serviço EFS no console AWS:**
    - Vincular à VPC.
    - Configurar armazenamento compartilhado entre as instâncias EC2.
 
+
+   ![Criação do Sistema de Arquivos](images/efss.png)
+   
+   
+
+<br/> 
+<hr/>
+<br/>
+
 ### Passo 6: Criar e Configurar RDS
     
-1. **Criar Banco de Dados MySQL:**
+1. **Acesse o painel RDS no console da AWS:**
+   
+
+   - Clique em criar banco de dados
+   - Escolha opção MySQL
    - Configurações Free Tier.
    - Definir usuário, senha, nome do banco.
    - Vincular à VPC, grupo de segurança, subnets privadas.
 
-### Passo 7: Configurar Docker e WordPress
 
-1. **Criar o Arquivo docker-compose.yml:**
-   ```yaml
-   services:
-     wordpress:
-       image: wordpress:latest
-       restart: always
-       ports:
-         - "8080:80"
-       environment:
-         WORDPRESS_DB_HOST: database-1.clgmyqs0asc5.us-east-1.rds.amazonaws.com:3306
-         WORDPRESS_DB_USER: admin
-         WORDPRESS_DB_PASSWORD: nicole1010
-         WORDPRESS_DB_NAME: bancodd
-       volumes:
-         - wordpress:/var/www/html
-
-   volumes:
-     wordpress:
+        Aqui está o seu RDS criado e configurado para uso.
+   ![Configuração das instâncias no LB](images/rds.png)
+ 
+<br/> 
+<hr/>
+<br/>
 
 
-Wordpress rodando através do DNS Load Balancer:
 
 
-![Configuração do wordpress](images/conf.wordpress.png)
-### Passo 8: Configurar Auto Scaling
+### Passo 7: Configurar Auto Scaling
+1. No painel AWS, acesse o serviço Auto Scaling
+
+
 - Criar Auto Scaling Group:
+- Escolha um nome para o seu AutoScaling
 - Vincular a um Launch Configuration ou Template.
 - Definir capacidades inicial, mínima e máxima.
 - Associar ao Load Balancer existente.
 
-Acessando o Wordpress após configuração de login e senha: 
+
+
+---
+### Conclusão
+Após concluir todos os passos acima, configure o seu wordpress selecionando o idioma, escolha o seu login e senha e acesse o seu blog.
+
+![Página inicial](images/conf.wordpress.png)
+
+
 ![Página de login](images/login.png)
 
-Acessando após o login:
-- Página de teste 
 ![Página inicial](images/teste.png)
 
 
+
+
+<h2 align="center"></h2>
+ 
+<p align="center">
+  Este projeto foi desenvolvido por <a href="https://github.com/nicoleevelyn7">Nicole Oliveira</a>. Atribuído pela <a href="https://compass.uol/pt/home/">Compass.Uol</a> e orientado por Thiago Geremias de Oliveira.
+</p>
